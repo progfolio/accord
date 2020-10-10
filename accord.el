@@ -22,7 +22,7 @@
 
 ;;; Variables
 (defun accord--current-window ()
-  "Return ID for currently focused window"
+  "Return ID for currently focused window."
   (string-trim (shell-command-to-string "xdotool getwindowfocus")))
 
 ;;@TODO: doesn't really work how we want it to.
@@ -49,7 +49,7 @@
   (let ((current (accord--current-window))
         (target (accord--window-by-name))
         (message (string-trim (buffer-substring-no-properties (point-min) (point-max)))))
-    (when (string-empty-p message) (user-error "Can't send empty message."))
+    (when (string-empty-p message) (user-error "Can't send empty message"))
     (gui-set-selection 'CLIPBOARD message)
     (call-process "xdotool" nil (get-buffer-create "*accord-process*") t "windowactivate" "--sync" target
                   ;;clear input
@@ -82,7 +82,7 @@ If NOCONFIRM is non-nil, do not prompt user for confirmation."
   (interactive "P")
   (let ((current (accord--current-window))
         (last-message (accord--last-message)))
-    (unless last-message (user-error "Unable to delete last message."))
+    (unless last-message (user-error "Unable to delete last message"))
     (when (or noconfirm (yes-or-no-p (format "Delete message?: %S" last-message)))
       (call-process "xdotool" nil (get-buffer-create "*accord-process*") nil
                     ;;activate target window
@@ -94,12 +94,21 @@ If NOCONFIRM is non-nil, do not prompt user for confirmation."
                     ;;refocus caller
                     "windowactivate" current))))
 
+(defun accord--reset-header-line ()
+  "Reset the header-line."
+  (setq header-line-format
+        (substitute-command-keys
+         (concat "\\<accord-mode-map>Accord buffer. "
+                 "Send: `\\[accord-send-message]' "
+                 "Edit: `\\[accord-edit-message]' "
+                 "Delete: `\\[accord-delete-message]'"))))
+
 (defun accord--edit-send (&rest _)
   "Advice before sending message used when editing a message.
 FN is `accord-send-message'."
   (let ((current (accord--current-window))
         (message (string-trim (buffer-substring-no-properties (point-min) (point-max)))))
-    (when (string-empty-p message) (user-error "Can't send empty message."))
+    (when (string-empty-p message) (user-error "Can't send empty message"))
     (gui-set-selection 'CLIPBOARD message)
     (call-process "xdotool" nil (get-buffer-create "*accord-process*") nil
                   ;;activate target window
@@ -111,12 +120,14 @@ FN is `accord-send-message'."
                   ;;refocus caller
                   "windowactivate" current))
   (erase-buffer)
+  (accord--reset-header-line)
   (advice-remove #'accord-send-message #'accord--edit-send))
 
 (defun accord--edit-abort (&rest _)
   "Advice before sending message used when editing a message.
 FN is `accord-delete-message'."
   (erase-buffer)
+  (accord--reset-header-line)
   (advice-remove #'accord-delete-message #'accord--edit-abort)
   (advice-remove #'accord-send-message #'accord--edit-send))
 
@@ -126,6 +137,11 @@ FN is `accord-delete-message'."
   (interactive)
   (insert (accord--last-message))
   (goto-char (point-min))
+  (setq header-line-format
+        (substitute-command-keys
+         (concat "\\<accord-mode-map>Accord buffer. "
+                 "Send: `\\[accord-send-message]' "
+                 "Abort Edit: `\\[accord-delete-message]'")))
   (advice-add #'accord-delete-message :override #'accord--edit-abort)
   (advice-add #'accord-send-message :override #'accord--edit-send))
 
@@ -181,10 +197,13 @@ FN is `accord-delete-message'."
 
 ;;;###autoload
 (defun accord ()
-  "Select accord buffer."
+  "Toggle accord buffer."
   (interactive)
-  (switch-to-buffer-other-window (get-buffer-create accord-buffer-name))
-  (unless accord-mode (accord-mode)))
+  (if (string= (buffer-name) accord-buffer-name)
+      (delete-window)
+    (select-window
+    (display-buffer-in-side-window (get-buffer-create accord-buffer-name) '((side . bottom))))
+    (unless accord-mode (accord-mode))))
 
 (provide 'accord)
 
