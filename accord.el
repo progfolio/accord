@@ -28,6 +28,9 @@
 ;; This package provides an xdotool driven interface to the Discord desktop application.
 
 ;;; Code:
+(unless (executable-find "xdotool")
+  (user-error "Accord cannot run without xdotool. Is it installed and on your PATH?"))
+
 (eval-when-compile (require 'subr-x))
 (require 'markdown-mode)
 
