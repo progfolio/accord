@@ -184,7 +184,7 @@ FN is `accord-send-message'."
 ;;This one also doesn't need to be executed in context of accord buffer.
 ;;;###autoload
 (defun accord-send-message ()
-  "Send message from accord buffer."
+  "Send message to Discord."
   (interactive)
   (let ((message (string-trim (buffer-substring-no-properties (point-min) (point-max)))))
     (when (string-empty-p message) (user-error "Can't send empty message"))
