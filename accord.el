@@ -20,8 +20,8 @@
   "Name of the accord buffer."
   :type 'string)
 
-(defcustom accord-key-delay-time "40"
-  "Number of milliseconds to delay between each xdotool key press."
+(defcustom accord-process-buffer-name "*accord-process*"
+  "Name of the accord process buffer."
   :type 'string)
 
 ;;; Functions
@@ -30,7 +30,7 @@
   (let ((current (accord--current-window))
         (target (accord--window-by-name)))
     (apply #'call-process
-           `("xdotool" nil ,(get-buffer-create "*accord-process*") t
+           `("xdotool" nil ,(get-buffer-create accord-process-buffer-name) t
              "windowactivate" "--sync" ,target
              ,@(flatten-list commands)
              "windowactivate" ,current))))
