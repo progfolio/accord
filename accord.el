@@ -35,6 +35,7 @@
 (require 'markdown-mode)
 
 ;;; Custom Options
+
 (defgroup accord nil
   "xdotool Driven Discord Interface"
   :group 'convenience
@@ -57,6 +58,16 @@
   :type 'number)
 
 ;;; Functions
+
+(defun accord--window-by-name (&optional regexp)
+  "Return window ID for window name matching REGEXP."
+  (string-trim (shell-command-to-string
+                (concat "xdotool search --name \"" (or regexp accord-window-regexp) "\""))))
+
+(defun accord--current-window ()
+  "Return ID for currently focused window."
+  (string-trim (shell-command-to-string "xdotool getwindowfocus")))
+
 (defun accord-send-commands (&rest commands)
   "Send COMMANDS to target window."
   (let ((current (accord--current-window))
@@ -67,14 +78,29 @@
              ,@(mapcar (lambda (el) (format "%s" el)) (flatten-list commands))
              "windowactivate" ,current))))
 
-(defun accord--current-window ()
-  "Return ID for currently focused window."
-  (string-trim (shell-command-to-string "xdotool getwindowfocus")))
+(defun accord--reset-header-line ()
+  "Reset the header-line."
+  (setq header-line-format
+        (substitute-command-keys
+         (concat "\\<accord-mode-map>Accord buffer. "
+                 "Send: `\\[accord-send-message]' "
+                 "Edit: `\\[accord-edit-message]' "
+                 "Delete: `\\[accord-delete-message]'"))))
 
 (defun accord--clear-input ()
   "Return command string to clear input area."
-  `("key" "--delay" ,(/ accord-key-delay-time 4) "ctrl+a"
+  `("key" "--delay" ,(/ accord-key-delay-time 5) "ctrl+a"
+    "keyup" "ctrl+a"
     "key" "--delay" ,accord-key-delay-time "Delete"))
+
+(defun accord--confirm ()
+  "Return command string to confirm text input."
+  `("key" "--delay" ,accord-key-delay-time "Return"))
+
+(defun accord--copy-input ()
+  "Return command string to paste clipboard."
+  ;;keyup necessary here?
+  `("key" "--delay" ,accord-key-delay-time "ctrl+a" "ctrl+c"))
 
 (defun accord--open-last ()
   "Return command string to open last message."
@@ -88,34 +114,6 @@
   `("key" "--delay" ,(/ accord-key-delay-time 4)  "ctrl+v" "keyup" "--delay"
     ,(/ accord-key-delay-time 4) "ctrl+v"))
 
-(defun accord--copy-input ()
-  "Return command string to paste clipboard."
-  ;;keyup necessary here?
-  `("key" "--delay" ,accord-key-delay-time "ctrl+a" "ctrl+c"))
-
-(defun accord--confirm ()
-  "Return command string to confirm text input."
-  `("key" "--delay" ,accord-key-delay-time "Return"))
-
-(defun accord--window-by-name (&optional regexp)
-  "Return window ID for window name matching REGEXP."
-  (string-trim (shell-command-to-string
-                (concat "xdotool search --name \"" (or regexp accord-window-regexp) "\""))))
-
-;;@TODO: use region when active?
-(defun accord-send-message ()
-  "Send message from accord buffer."
-  (interactive)
-  (let ((message (string-trim (buffer-substring-no-properties (point-min) (point-max)))))
-    (when (string-empty-p message) (user-error "Can't send empty message"))
-    (gui-set-selection 'CLIPBOARD message)
-    (accord-send-commands
-     (accord--clear-input)
-     (accord--paste)
-     (accord--confirm))
-    (undo-boundary)
-    (erase-buffer)))
-
 (defun accord--last-message ()
   "Return last sent message."
   ;; Clear in case we have something already stored in the clipboard
@@ -126,6 +124,8 @@
    "Escape")
   (when-let ((selection (gui-get-selection 'CLIPBOARD)))
     (substring-no-properties selection)))
+
+;;; Commands
 
 (defun accord-delete-message (&optional noconfirm)
   "Delete last posted message.
@@ -143,14 +143,13 @@ If NOCONFIRM is non-nil, do not prompt user for confirmation."
        (let ((accord-key-delay-time (* accord-key-delay-time 3))) (accord--confirm))
        (accord--confirm)))))
 
-(defun accord--reset-header-line ()
-  "Reset the header-line."
-  (setq header-line-format
-        (substitute-command-keys
-         (concat "\\<accord-mode-map>Accord buffer. "
-                 "Send: `\\[accord-send-message]' "
-                 "Edit: `\\[accord-edit-message]' "
-                 "Delete: `\\[accord-delete-message]'"))))
+(defun accord--edit-abort (&rest _)
+  "Advice before sending message used when editing a message.
+FN is `accord-delete-message'."
+  (erase-buffer)
+  (accord--reset-header-line)
+  (advice-remove #'accord-delete-message #'accord--edit-abort)
+  (advice-remove #'accord-send-message #'accord--edit-send))
 
 (defun accord--edit-send (&rest _)
   "Advice before sending message used when editing a message.
@@ -168,26 +167,6 @@ FN is `accord-send-message'."
     (accord--reset-header-line)
     (advice-remove #'accord-send-message #'accord--edit-send)))
 
-(defvar accord-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-c C-c") 'accord-send-message)
-    (define-key map (kbd "C-c C-e") 'accord-edit-message)
-    (define-key map (kbd "C-c C-k") 'accord-delete-message)
-    map))
-
-(define-derived-mode accord-mode markdown-mode "accord"
-  "Send messages to Discord from Emacs."
-  (accord--reset-header-line))
-
-(defun accord--edit-abort (&rest _)
-  "Advice before sending message used when editing a message.
-FN is `accord-delete-message'."
-  (erase-buffer)
-  (accord--reset-header-line)
-  (advice-remove #'accord-delete-message #'accord--edit-abort)
-  (advice-remove #'accord-send-message #'accord--edit-send))
-
-;;;###autoload
 (defun accord-edit-message ()
   "Edit last message."
   (interactive)
@@ -201,41 +180,39 @@ FN is `accord-delete-message'."
   (advice-add #'accord-delete-message :override #'accord--edit-abort)
   (advice-add #'accord-send-message :override #'accord--edit-send))
 
+;;@TODO: use region when active?
+;;This one also doesn't need to be executed in context of accord buffer.
 ;;;###autoload
-(defun accord-last-channel ()
-  "Choose last channel."
+(defun accord-send-message ()
+  "Send message from accord buffer."
+  (interactive)
+  (let ((message (string-trim (buffer-substring-no-properties (point-min) (point-max)))))
+    (when (string-empty-p message) (user-error "Can't send empty message"))
+    (gui-set-selection 'CLIPBOARD message)
+    (accord-send-commands
+     (accord--clear-input)
+     (accord--paste)
+     (accord--confirm))
+    (undo-boundary)
+    (erase-buffer)))
+
+;;;###autoload
+(defun accord-channel-last ()
+  "Select last selected channel."
   (interactive)
   (accord-send-commands "key" "--delay" (/ accord-key-delay-time 4) "ctrl+k" "Return"))
-
-(defun accord-channel--scroll (direction)
-  "Scroll channel in DIRECTION."
-  (interactive)
-  (accord-send-commands "key" "--delay" (/ accord-key-delay-time 4) direction))
-
-;;;###autoload
-(defun accord-channel-scroll-down (&optional bottom)
-  "Scroll channel down.
-If BOTTOM is non-nil, return to bottom of channel."
-  (interactive "P")
-  (accord-channel--scroll (concat (when bottom "Shift+") "Page_Down")))
-
-;;;###autoload
-(defun accord-channel-scroll-up ()
-  "Select next channel in server."
-  (interactive)
-  (accord-channel--scroll "Page_Up"))
-
-;;;###autoload
-(defun accord-channel-mark-read ()
-  "Mark channel as read."
-  (interactive)
-  (accord-send-commands "key" "--delay" (/ accord-key-delay-time 4) "Escape"))
 
 ;;;###autoload
 (defun accord-channel-goto-unread ()
   "Goto unread first unread message in channel."
   (interactive)
   (accord-send-commands "key" "--delay" (/ accord-key-delay-time 4) "Shift+Page_Up"))
+
+;;;###autoload
+(defun accord-channel-mark-read ()
+  "Mark channel as read."
+  (interactive)
+  (accord-send-commands "key" "--delay" (/ accord-key-delay-time 4) "Escape"))
 
 (defun accord--select (entity direction)
   "Choose previous ENTITY in DIRECTION.
@@ -257,6 +234,36 @@ ENTITY may be either `server` or `channel`."
   (interactive)
   (accord--select 'channel "Up"))
 
+(defun accord-channel--scroll (direction)
+  "Scroll channel in DIRECTION."
+  (interactive)
+  (accord-send-commands "key" "--delay" (/ accord-key-delay-time 4) direction))
+
+;;;###autoload
+(defun accord-channel-scroll-down (&optional bottom)
+  "Scroll channel down.
+If BOTTOM is non-nil, return to bottom of channel."
+  (interactive "P")
+  (accord-channel--scroll (concat (when bottom "Shift+") "Page_Down")))
+
+;;;###autoload
+(defun accord-channel-scroll-up ()
+  "Select next channel in server."
+  (interactive)
+  (accord-channel--scroll "Page_Up"))
+
+;;;###autoload
+(defun accord-channel-search (&optional query)
+  "Select channel by QUERY."
+  (interactive)
+  (let ((search (or query (read-string "accord channel: "))))
+    (accord-send-commands
+     "key" "--delay" "80" "ctrl+k"
+     "key" "--delay" "20"
+     (cdr (mapcar (lambda (char) (replace-regexp-in-string " " "space" char))
+                  (split-string search "")))
+     (accord--confirm))))
+
 ;;;###autoload
 (defun accord-server-prev ()
   "Select previous channel in server."
@@ -270,18 +277,6 @@ ENTITY may be either `server` or `channel`."
   (accord--select 'server "Down"))
 
 ;;;###autoload
-(defun accord-search-channel (&optional query)
-  "Select channel by QUERY."
-  (interactive)
-  (let ((search (or query (read-string "accord channel: "))))
-    (accord-send-commands
-     "key" "--delay" "80" "ctrl+k"
-     "key" "--delay" "20"
-     (cdr (mapcar (lambda (char) (replace-regexp-in-string " " "space" char))
-                  (split-string search "")))
-     (accord--confirm))))
-
-;;;###autoload
 (defun accord ()
   "Toggle accord buffer."
   (interactive)
@@ -290,6 +285,18 @@ ENTITY may be either `server` or `channel`."
     (select-window
      (display-buffer-in-side-window (get-buffer-create accord-buffer-name) '((side . bottom))))
     (unless (derived-mode-p 'accord-mode) (accord-mode))))
+
+;;; Mode definition
+(defvar accord-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-c C-c") 'accord-send-message)
+    (define-key map (kbd "C-c C-e") 'accord-edit-message)
+    (define-key map (kbd "C-c C-k") 'accord-delete-message)
+    map))
+
+(define-derived-mode accord-mode markdown-mode "accord"
+  "Send messages to Discord from Emacs."
+  (accord--reset-header-line))
 
 (provide 'accord)
 
