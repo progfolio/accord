@@ -5,6 +5,7 @@
 
 ;;; Code:
 (eval-when-compile (require 'subr-x))
+(require 'markdown-mode)
 
 ;;; Custom Options
 (defgroup accord nil
@@ -139,24 +140,16 @@ FN is `accord-send-message'."
     (accord--reset-header-line)
     (advice-remove #'accord-send-message #'accord--edit-send)))
 
-(define-minor-mode accord-mode
+(defvar accord-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-c C-c") 'accord-send-message)
+    (define-key map (kbd "C-c C-e") 'accord-edit-message)
+    (define-key map (kbd "C-c C-k") 'accord-delete-message)
+    map))
+
+(define-derived-mode accord-mode markdown-mode "accord"
   "Send messages to Discord from Emacs."
-  :lighter " accord"
-  :keymap (let ((map (make-sparse-keymap)))
-            (define-key map (kbd "C-c C-c") 'accord-send-message)
-            (define-key map (kbd "C-c C-e") 'accord-edit-message)
-            (define-key map (kbd "C-c C-k") 'accord-delete-message)
-            map)
-  (let ((original header-line-format))
-    (if accord-mode
-        (progn
-          (setq header-line-format
-                (substitute-command-keys
-                 (concat "\\<accord-mode-map>Accord buffer. "
-                         "Send: `\\[accord-send-message]' "
-                         "Edit: `\\[accord-edit-message]' "
-                         "Delete: `\\[accord-delete-message]'"))))
-      (setq header-line-format original))))
+  (accord--reset-header-line))
 
 (defun accord--edit-abort (&rest _)
   "Advice before sending message used when editing a message.
@@ -268,7 +261,7 @@ ENTITY may be either `server` or `channel`."
       (delete-window)
     (select-window
      (display-buffer-in-side-window (get-buffer-create accord-buffer-name) '((side . bottom))))
-    (unless accord-mode (accord-mode))))
+    (unless (derived-mode-p 'accord-mode) (accord-mode))))
 
 (provide 'accord)
 
