@@ -70,7 +70,7 @@
 
 (defun accord--xdotool-clear-input ()
   "Return command string to clear input area."
-  `("key" "--delay" "5" "ctrl+a"
+  `("key" "--delay" ,(/ accord-key-delay-time 4) "ctrl+a"
     "key" "--delay" ,accord-key-delay-time "Delete"))
 
 (defun accord--xdotool-open-last ()
@@ -82,7 +82,8 @@
 (defun accord--xdotool-paste ()
   "Return command string to paste clipboard."
   ;;keyup necessary here?
-  `("key" "--delay" ,(/ accord-key-delay-time 4)  "ctrl+v" "keyup" "--delay" "20" "ctrl+v"))
+  `("key" "--delay" ,(/ accord-key-delay-time 4)  "ctrl+v" "keyup" "--delay"
+    ,(/ accord-key-delay-time 4) "ctrl+v"))
 
 (defun accord--xdotool-copy-input ()
   "Return command string to paste clipboard."
@@ -136,7 +137,7 @@ If NOCONFIRM is non-nil, do not prompt user for confirmation."
        (accord--xdotool-clear-input)
        ;; Discord doesn't let you delete without confirming and the pop-up takes
        ;; some time to appear...
-       (let ((accord-key-delay-time "300")) (accord--xdotool-confirm))
+       (let ((accord-key-delay-time (* accord-key-delay-time 3))) (accord--xdotool-confirm))
        (accord--xdotool-confirm)))))
 
 (defun accord--reset-header-line ()
@@ -201,12 +202,12 @@ FN is `accord-delete-message'."
 (defun accord-last-channel ()
   "Choose last channel."
   (interactive)
-  (accord-send-commands "key" "--delay" "80" "ctrl+k" "Return"))
+  (accord-send-commands "key" "--delay" (/ accord-key-delay-time 4) "ctrl+k" "Return"))
 
 (defun accord-channel--scroll (direction)
   "Scroll channel in DIRECTION."
   (interactive)
-  (accord-send-commands "key" "--delay" "80" direction))
+  (accord-send-commands "key" "--delay" (/ accord-key-delay-time 4) direction))
 
 ;;;###autoload
 (defun accord-channel-scroll-down (&optional bottom)
@@ -225,19 +226,19 @@ If BOTTOM is non-nil, return to bottom of channel."
 (defun accord-channel-mark-read ()
   "Mark channel as read."
   (interactive)
-  (accord-send-commands "key" "--delay" "80" "Escape"))
+  (accord-send-commands "key" "--delay" (/ accord-key-delay-time 4) "Escape"))
 
 ;;;###autoload
 (defun accord-channel-goto-unread ()
   "Goto unread first unread message in channel."
   (interactive)
-  (accord-send-commands "key" "--delay" "80" "Shift+Page_Up"))
+  (accord-send-commands "key" "--delay" (/ accord-key-delay-time 4) "Shift+Page_Up"))
 
 (defun accord--select (entity direction)
   "Choose previous ENTITY in DIRECTION.
 ENTITY may be either `server` or `channel`."
   (interactive)
-  (accord-send-commands "key" "--delay" "100"
+  (accord-send-commands "key" "--delay" accord-key-delay-time
                         (concat (when (eq entity 'server) "ctrl+") "alt+" direction)))
 
 ;;@TODO: should probably take a numeric arg to repeat
