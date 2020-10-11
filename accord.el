@@ -68,29 +68,29 @@
   "Return ID for currently focused window."
   (string-trim (shell-command-to-string "xdotool getwindowfocus")))
 
-(defun accord--xdotool-clear-input ()
+(defun accord--clear-input ()
   "Return command string to clear input area."
   `("key" "--delay" ,(/ accord-key-delay-time 4) "ctrl+a"
     "key" "--delay" ,accord-key-delay-time "Delete"))
 
-(defun accord--xdotool-open-last ()
+(defun accord--open-last ()
   "Return command string to open last message."
   ;;keyup necessary here?
-  `(,@(accord--xdotool-clear-input)
+  `(,@(accord--clear-input)
     "key" "--delay" ,accord-key-delay-time "Up"))
 
-(defun accord--xdotool-paste ()
+(defun accord--paste ()
   "Return command string to paste clipboard."
   ;;keyup necessary here?
   `("key" "--delay" ,(/ accord-key-delay-time 4)  "ctrl+v" "keyup" "--delay"
     ,(/ accord-key-delay-time 4) "ctrl+v"))
 
-(defun accord--xdotool-copy-input ()
+(defun accord--copy-input ()
   "Return command string to paste clipboard."
   ;;keyup necessary here?
   `("key" "--delay" ,accord-key-delay-time "ctrl+a" "ctrl+c"))
 
-(defun accord--xdotool-confirm ()
+(defun accord--confirm ()
   "Return command string to confirm text input."
   `("key" "--delay" ,accord-key-delay-time "Return"))
 
@@ -107,9 +107,9 @@
     (when (string-empty-p message) (user-error "Can't send empty message"))
     (gui-set-selection 'CLIPBOARD message)
     (accord-send-commands
-     (accord--xdotool-clear-input)
-     (accord--xdotool-paste)
-     (accord--xdotool-confirm))
+     (accord--clear-input)
+     (accord--paste)
+     (accord--confirm))
     (undo-boundary)
     (erase-buffer)))
 
@@ -118,8 +118,8 @@
   ;; Clear in case we have something already stored in the clipboard
   (gui-set-selection 'CLIPBOARD nil)
   (accord-send-commands
-   (accord--xdotool-open-last)
-   (accord--xdotool-copy-input)
+   (accord--open-last)
+   (accord--copy-input)
    "Escape")
   (when-let ((selection (gui-get-selection 'CLIPBOARD)))
     (substring-no-properties selection)))
@@ -133,12 +133,12 @@ If NOCONFIRM is non-nil, do not prompt user for confirmation."
       (setq last (or (accord--last-message) (user-error "Unable to delete last message"))))
     (when (or noconfirm (yes-or-no-p (format "Delete message?: %S" last)))
       (accord-send-commands
-       (accord--xdotool-open-last)
-       (accord--xdotool-clear-input)
+       (accord--open-last)
+       (accord--clear-input)
        ;; Discord doesn't let you delete without confirming and the pop-up takes
        ;; some time to appear...
-       (let ((accord-key-delay-time (* accord-key-delay-time 3))) (accord--xdotool-confirm))
-       (accord--xdotool-confirm)))))
+       (let ((accord-key-delay-time (* accord-key-delay-time 3))) (accord--confirm))
+       (accord--confirm)))))
 
 (defun accord--reset-header-line ()
   "Reset the header-line."
@@ -156,10 +156,10 @@ FN is `accord-send-message'."
     (when (string-empty-p message) (user-error "Can't send empty message"))
     (gui-set-selection 'CLIPBOARD message)
     (accord-send-commands
-     (accord--xdotool-open-last)
-     (accord--xdotool-clear-input)
-     (accord--xdotool-paste)
-     (accord--xdotool-confirm))
+     (accord--open-last)
+     (accord--clear-input)
+     (accord--paste)
+     (accord--confirm))
     (undo-boundary)
     (erase-buffer)
     (accord--reset-header-line)
@@ -276,7 +276,7 @@ ENTITY may be either `server` or `channel`."
      "key" "--delay" "20"
      (cdr (mapcar (lambda (char) (replace-regexp-in-string " " "space" char))
                   (split-string search "")))
-     (accord--xdotool-confirm))))
+     (accord--confirm))))
 
 ;;;###autoload
 (defun accord ()
