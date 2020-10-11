@@ -24,6 +24,10 @@
   "Name of the accord process buffer."
   :type 'string)
 
+(defcustom accord-key-delay-time 100
+  "Number of milliseconds to delay between each xdotool key press."
+  :type 'number)
+
 ;;; Functions
 (defun accord-send-commands (&rest commands)
   "Send COMMANDS to target window."
