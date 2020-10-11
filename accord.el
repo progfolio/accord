@@ -49,7 +49,7 @@
     "key" "--delay" ,accord-key-delay-time "Delete"))
 
 (defun accord--xdotool-open-last ()
-  "Return command string to paste clipboard."
+  "Return command string to open last message."
   ;;keyup necessary here?
   `(,@(accord--xdotool-clear-input)
     "key" "--delay" ,accord-key-delay-time "Up"))
