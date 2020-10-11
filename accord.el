@@ -36,7 +36,7 @@
     (apply #'call-process
            `("xdotool" nil ,(get-buffer-create accord-process-buffer-name) t
              "windowactivate" "--sync" ,target
-             ,@(flatten-list commands)
+             ,@(mapcar (lambda (el) (format "%s" el)) (flatten-list commands))
              "windowactivate" ,current))))
 
 (defun accord--current-window ()
@@ -57,7 +57,7 @@
 (defun accord--xdotool-paste ()
   "Return command string to paste clipboard."
   ;;keyup necessary here?
-  `("key" "--delay" ,accord-key-delay-time  "ctrl+v"))
+  `("key" "--delay" ,(/ accord-key-delay-time 4)  "ctrl+v" "keyup" "--delay" "20" "ctrl+v"))
 
 (defun accord--xdotool-copy-input ()
   "Return command string to paste clipboard."
