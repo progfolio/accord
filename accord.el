@@ -101,7 +101,10 @@
   "Return command string to clear input area."
   `("key" "--delay" ,(/ accord-key-delay-time 5) "ctrl+a"
     "keyup" "ctrl+a"
-    "key" "--delay" ,accord-key-delay-time "Delete"))
+    ;; Using two BackSpaces here because of the way Discord handles quoted text.
+    ;; It requires a second delete to clear the inserted quote bar...
+    "key" "--delay" ,accord-key-delay-time "BackSpace"
+    "key" ,accord-key-delay-time "BackSpace"))
 
 (defun accord--confirm ()
   "Return command string to confirm text input."
