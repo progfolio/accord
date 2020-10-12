@@ -68,6 +68,10 @@
   "Return ID for currently focused window."
   (string-trim (shell-command-to-string "xdotool getwindowfocus")))
 
+(defun accord--erase-buffer ()
+  "Erase `accord-buffer-name'."
+  (with-current-buffer (get-buffer-create accord-buffer-name) (erase-buffer)))
+
 (defun accord-send-commands (&rest commands)
   "Send COMMANDS to target window."
   (let ((current (accord--current-window))
@@ -147,7 +151,7 @@ If NOCONFIRM is non-nil, do not prompt user for confirmation."
 (defun accord--edit-abort (&rest _)
   "Advice before sending message used when editing a message.
 FN is `accord-delete-message'."
-  (when (string= (buffer-name) accord-buffer-name) (erase-buffer))
+  (accord--erase-buffer)
   (accord--reset-header-line)
   (advice-remove #'accord-delete-message #'accord--edit-abort)
   (advice-remove #'accord-send-message #'accord--edit-send))
@@ -165,7 +169,7 @@ FN is `accord-send-message'."
      (accord--paste)
      (accord--confirm))
     (undo-boundary)
-    (when (string= (buffer-name) accord-buffer-name) (erase-buffer))
+    (accord--erase-buffer)
     (accord--reset-header-line)
     (advice-remove #'accord-send-message #'accord--edit-send)))
 
@@ -198,7 +202,7 @@ If region is active, use `mark' and `point' as START and END."
      (accord--paste)
      (accord--confirm))
     (undo-boundary)
-  (when (string= (buffer-name) accord-buffer-name) (erase-buffer))))
+    (accord--erase-buffer)))
 
 ;;;###autoload
 (defun accord-channel-last ()
