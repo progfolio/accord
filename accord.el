@@ -67,7 +67,7 @@
   "Return ID for currently focused window."
   (string-trim (shell-command-to-string "xdotool getwindowfocus")))
 
-(defun accord--window-by-name (&optional regexp visible target)
+(defun accord--window-by-name (&optional regexp visible)
   "Return window ID for window name matching REGEXP.
 If VISIBLE is non-nil only search for visible windows.
 TARGET used to refocus original window."
@@ -75,19 +75,15 @@ TARGET used to refocus original window."
   ;;Discord returns several window ID's when searching by name.
   ;;In order to get the one we're interested in sending keys to, we need to
   ;;first focus the window and then redo the search with "--onlyvisible".
-  (let* ((current (or target (accord--current-window)))
+  (let* ((current (accord--current-window))
          (command (concat "xdotool search --name "
                           (when visible "--onlyvisible ")
                           "\"" (or regexp accord-window-regexp) "\""))
-         (ids (split-string (shell-command-to-string command) "\n" 'omit-nulls)))
-    (if (= (length ids) 1)
-        (progn
-          (call-process "xdotool" nil (get-buffer-create accord-process-buffer-name)
-                        t "windowactivate" current)
-          (car ids))
-      (dolist (id ids (accord--window-by-name regexp 'visible current))
-        (call-process "xdotool" nil (get-buffer-create accord-process-buffer-name)
-                      t "windowactivate" id)))))
+         (ids (or (split-string (shell-command-to-string command) "\n" 'omit-nulls)
+                  (user-error "Target window not found. Is Discord open?"))))
+    (call-process "xdotool" nil (get-buffer-create accord-process-buffer-name)
+                  t "windowactivate" current)
+    ids))
 
 (defun accord--erase-buffer ()
   "Erase `accord-buffer-name'."
@@ -96,10 +92,11 @@ TARGET used to refocus original window."
 (defun accord-send-commands (&rest commands)
   "Send COMMANDS to target window."
   (let ((current (accord--current-window))
-        (target (accord--window-by-name)))
+        (ids (accord--window-by-name)))
+    (dolist (id ids)
+      (call-process "xdotool" nil nil nil "windowactivate" id))
     (apply #'call-process
            `("xdotool" nil ,(get-buffer-create accord-process-buffer-name) t
-             "windowactivate" "--sync" ,target
              ,@(mapcar (lambda (el) (format "%s" el)) (flatten-list commands))
              "windowactivate" ,current))))
 
