@@ -183,13 +183,14 @@ FN is `accord-send-message'."
   (advice-add #'accord-delete-message :override #'accord--edit-abort)
   (advice-add #'accord-send-message :override #'accord--edit-send))
 
-;;@TODO: use region when active?
-;;This one also doesn't need to be executed in context of accord buffer.
+;;@TODO: send-in-chunks option to bypass charcter limit?
 ;;;###autoload
-(defun accord-send-message ()
-  "Send message to Discord."
-  (interactive)
-  (let ((message (string-trim (buffer-substring-no-properties (point-min) (point-max)))))
+(defun accord-send-message (&optional start end)
+  "Send string between START and END as message to Discord.
+If region is active, use `mark' and `point' as START and END."
+  (interactive "r")
+  (let ((message (string-trim (buffer-substring-no-properties
+                               (or start (point-min)) (or end (point-max))))))
     (when (string-empty-p message) (user-error "Can't send empty message"))
     (gui-set-selection 'CLIPBOARD message)
     (accord-send-commands
