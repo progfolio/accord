@@ -57,6 +57,10 @@
   "Number of milliseconds to delay between each xdotool key press."
   :type 'number)
 
+(defcustom accord-character-limit 2000
+  "Character limit for Discord messages before they are converted to file."
+  :type 'number)
+
 ;;; Variables
 
 (defvar accord--edit-in-progress nil
@@ -194,34 +198,68 @@ If NOCONFIRM is non-nil, do not prompt user for confirmation."
                  "Abort Edit: `\\[accord-delete-message]'"))
         accord--edit-in-progress t))
 
-;;@TODO: send-in-chunks option to bypass charcter limit?
+(defun accord--chunk-message (message &optional limit)
+  "Send MESSAGE in chunks under LIMIT.
+If LIMIT is nil, `accord-character-limit' is used."
+  (let* ((blockquote (string-match-p "^>>>" message))
+         (chars (cdr (split-string message "")))
+         (charcount 0)
+         (limit (or limit accord-character-limit))
+         chunk chunks word)
+    (while (setq char (pop chars))
+      (if (< charcount limit)
+          (progn
+            (push char chunk)
+            (setq charcount (1+ charcount)))
+        ;; don't break words when chunking
+        (while (not (string-match "[[:space:]]" char))
+          (push char chars)
+          (setq char (pop chunk)))
+        (push char chars)
+        (push chunk chunks)
+        (setq chunk '()
+              charcount 0)))
+    ;;push last chunk
+    (push chunk chunks)
+    (nreverse (mapcar (lambda (chunk) (string-join (nreverse chunk) "")) chunks))))
+
+
 ;;;###autoload
-(defun accord-send-message ()
-  "Send string between START and END as message to Discord.
-If region is active, use `mark' and `point' as START and END."
-  (interactive)
-  (let (keep)
-    (when (and accord--edit-in-progress
-               (not (string= (buffer-name) accord-buffer-name)))
-      (if (setq keep (not
-                      (yes-or-no-p
-                       (format "Abort edit in progress in %S buffer?"
-                               accord-buffer-name))))
+(defun accord-send-message (&optional nochunk message)
+  "Send MESSAGE to Discord.
+If MESSAGE is no-nil region is sent if active, otherwise entire buffer is sent.
+If NOCHUNK is non-nil do not send messages over `accord-character-limit'
+as seperate messages. In this case, Discord will upload the message as a text file."
+  (interactive "P")
+  (let* ((previous (and accord--edit-in-progress
+                        (not (string= (buffer-name) accord-buffer-name))))
+         (keep (when previous
+                 (not (yes-or-no-p (format "Abort edit in progress in %S buffer?"
+                                           accord-buffer-name))))))
+    (when previous
+      (if keep
           (accord)
         (accord--edit-abort)
-        (accord-send-message)))
+        (setq keep nil)))
     (unless keep
-      (let ((message (string-trim (apply #'buffer-substring-no-properties
-                                         (if (region-active-p)
-                                             (list (region-beginning) (region-end))
-                                           (list (point-min) (point-max)))))))
-        (when (string-empty-p message) (user-error "Can't send empty message"))
-        (gui-set-selection 'CLIPBOARD message)
-        (accord-send-commands
-         (when accord--edit-in-progress (accord--open-last))
-         (accord--clear-input)
-         (accord--paste)
-         (accord--confirm))
+      (let* ((message (or message
+                          (string-trim (apply #'buffer-substring-no-properties
+                                              (if (region-active-p)
+                                                  (list (region-beginning) (region-end))
+                                                (list (point-min) (point-max)))))))
+             (messages (if nochunk (list message) (accord--chunk-message message)))
+             (messages-count (length messages)))
+        (dolist (message messages)
+          (when (string-empty-p message) (user-error "Can't send empty message"))
+          (gui-set-selection 'CLIPBOARD message)
+          (accord-send-commands
+           (when accord--edit-in-progress (accord--open-last))
+           (accord--clear-input)
+           (accord--paste)
+           (accord--confirm))
+          ;;@Hack: still subject to race conditions
+          ;;if one process isn't finished before next starts
+          (when (> messages-count 1) (sleep-for (/ accord-key-delay-time 1000.0))))
         (undo-boundary)
         (accord--erase-buffer)
         (when accord--edit-in-progress
