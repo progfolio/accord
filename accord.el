@@ -182,28 +182,33 @@ If NOCONFIRM is non-nil, do not prompt user for confirmation."
   "Send string between START and END as message to Discord.
 If region is active, use `mark' and `point' as START and END."
   (interactive)
-  (when (and accord--edit-in-progress
-             (not (string= (buffer-name) accord-buffer-name))
-             (yes-or-no-p (format "Abort edit in progress in %S buffer?"
-                                  accord-buffer-name)))
-    (accord--edit-abort)
-    (accord-send-message))
-  (let ((message (string-trim (apply #'buffer-substring-no-properties
-                                     (if (region-active-p)
-                                         (list (region-beginning) (region-end))
-                                       (list (point-min) (point-max)))))))
-    (when (string-empty-p message) (user-error "Can't send empty message"))
-    (gui-set-selection 'CLIPBOARD message)
-    (accord-send-commands
-     (when accord--edit-in-progress (accord--open-last))
-     (accord--clear-input)
-     (accord--paste)
-     (accord--confirm))
-    (undo-boundary)
-    (accord--erase-buffer)
-    (when accord--edit-in-progress
-      (accord--reset-header-line)
-      (setq accord--edit-in-progress nil))))
+  (let (keep)
+    (when (and accord--edit-in-progress
+               (not (string= (buffer-name) accord-buffer-name)))
+      (if (setq keep (not
+                      (yes-or-no-p
+                       (format "Abort edit in progress in %S buffer?"
+                               accord-buffer-name))))
+          (accord)
+        (accord--edit-abort)
+        (accord-send-message)))
+    (unless keep
+      (let ((message (string-trim (apply #'buffer-substring-no-properties
+                                         (if (region-active-p)
+                                             (list (region-beginning) (region-end))
+                                           (list (point-min) (point-max)))))))
+        (when (string-empty-p message) (user-error "Can't send empty message"))
+        (gui-set-selection 'CLIPBOARD message)
+        (accord-send-commands
+         (when accord--edit-in-progress (accord--open-last))
+         (accord--clear-input)
+         (accord--paste)
+         (accord--confirm))
+        (undo-boundary)
+        (accord--erase-buffer)
+        (when accord--edit-in-progress
+          (accord--reset-header-line)
+          (setq accord--edit-in-progress nil))))))
 
 ;;;###autoload
 (defun accord-channel-last ()
