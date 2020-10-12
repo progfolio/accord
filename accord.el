@@ -147,7 +147,7 @@ If NOCONFIRM is non-nil, do not prompt user for confirmation."
 (defun accord--edit-abort (&rest _)
   "Advice before sending message used when editing a message.
 FN is `accord-delete-message'."
-  (erase-buffer)
+  (when (string= (buffer-name) accord-buffer-name) (erase-buffer))
   (accord--reset-header-line)
   (advice-remove #'accord-delete-message #'accord--edit-abort)
   (advice-remove #'accord-send-message #'accord--edit-send))
@@ -155,6 +155,7 @@ FN is `accord-delete-message'."
 (defun accord--edit-send (&rest _)
   "Advice before sending message used when editing a message.
 FN is `accord-send-message'."
+  (unless (derived-mode-p 'accord-mode) (accord))
   (let ((message (string-trim (buffer-substring-no-properties (point-min) (point-max)))))
     (when (string-empty-p message) (user-error "Can't send empty message"))
     (gui-set-selection 'CLIPBOARD message)
@@ -164,13 +165,14 @@ FN is `accord-send-message'."
      (accord--paste)
      (accord--confirm))
     (undo-boundary)
-    (erase-buffer)
+    (when (string= (buffer-name) accord-buffer-name) (erase-buffer))
     (accord--reset-header-line)
     (advice-remove #'accord-send-message #'accord--edit-send)))
 
 (defun accord-edit-message ()
   "Edit last message."
   (interactive)
+  (unless (derived-mode-p 'accord-mode) (accord))
   (insert (accord--last-message))
   (goto-char (point-min))
   (setq header-line-format
@@ -195,7 +197,7 @@ FN is `accord-send-message'."
      (accord--paste)
      (accord--confirm))
     (undo-boundary)
-    (erase-buffer)))
+  (when (string= (buffer-name) accord-buffer-name) (erase-buffer))))
 
 ;;;###autoload
 (defun accord-channel-last ()
