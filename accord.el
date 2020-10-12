@@ -127,6 +127,7 @@
 
 ;;; Commands
 
+;;;###autoload
 (defun accord-delete-message (&optional noconfirm)
   "Delete last posted message.
 If NOCONFIRM is non-nil, do not prompt user for confirmation."
