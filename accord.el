@@ -41,7 +41,7 @@
   :group 'convenience
   :prefix "accord-")
 
-(defcustom accord-window-regexp "(#|@).*Discord"
+(defcustom accord-window-regexp "(#|@)?.*Discord"
   "Regexp to identify Discord window."
   :type 'string)
 
@@ -63,15 +63,31 @@
   "Internal variable for tracking edit progress.")
 
 ;;; Functions
-
-(defun accord--window-by-name (&optional regexp)
-  "Return window ID for window name matching REGEXP."
-  (string-trim (shell-command-to-string
-                (concat "xdotool search --name \"" (or regexp accord-window-regexp) "\""))))
-
 (defun accord--current-window ()
   "Return ID for currently focused window."
   (string-trim (shell-command-to-string "xdotool getwindowfocus")))
+
+(defun accord--window-by-name (&optional regexp visible target)
+  "Return window ID for window name matching REGEXP.
+If VISIBLE is non-nil only search for visible windows.
+TARGET used to refocus original window."
+  ;;This is more complicated that I would like it to be, but so is life.
+  ;;Discord returns several window ID's when searching by name.
+  ;;In order to get the one we're interested in sending keys to, we need to
+  ;;first focus the window and then redo the search with "--onlyvisible".
+  (let* ((current (or target (accord--current-window)))
+         (command (concat "xdotool search --name "
+                          (when visible "--onlyvisible ")
+                          "\"" (or regexp accord-window-regexp) "\""))
+         (ids (split-string (shell-command-to-string command) "\n" 'omit-nulls)))
+    (if (= (length ids) 1)
+        (progn
+          (call-process "xdotool" nil (get-buffer-create accord-process-buffer-name)
+                        t "windowactivate" current)
+          (car ids))
+      (dolist (id ids (accord--window-by-name regexp 'visible current))
+        (call-process "xdotool" nil (get-buffer-create accord-process-buffer-name)
+                      t "windowactivate" id)))))
 
 (defun accord--erase-buffer ()
   "Erase `accord-buffer-name'."
