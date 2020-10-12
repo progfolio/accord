@@ -57,6 +57,11 @@
   "Number of milliseconds to delay between each xdotool key press."
   :type 'number)
 
+;;; Variables
+
+(defvar accord--edit-in-progress nil
+  "Internal variable for tracking edit progress.")
+
 ;;; Functions
 
 (defun accord--window-by-name (&optional regexp)
@@ -137,43 +142,27 @@
   "Delete last posted message.
 If NOCONFIRM is non-nil, do not prompt user for confirmation."
   (interactive "P")
-  (let (last)
-    (unless noconfirm
-      (setq last (or (accord--last-message) (user-error "Unable to delete last message"))))
-    (when (or noconfirm (yes-or-no-p (format "Delete message?: %S" last)))
-      (accord-send-commands
-       (accord--open-last)
-       (accord--clear-input)
-       ;; Discord doesn't let you delete without confirming and the pop-up takes
-       ;; some time to appear...
-       (let ((accord-key-delay-time (* accord-key-delay-time 3))) (accord--confirm))
-       (accord--confirm)))))
+  (if accord--edit-in-progress
+      (accord--edit-abort)
+    (let (last)
+      (unless noconfirm
+        (setq last (or (accord--last-message) (user-error "Unable to delete last message"))))
+      (when (or noconfirm (yes-or-no-p (format "Delete message?: %S" last)))
+        (accord-send-commands
+         (accord--open-last)
+         (accord--clear-input)
+         ;; Discord doesn't let you delete without confirming and the pop-up takes
+         ;; some time to appear...
+         (let ((accord-key-delay-time (* accord-key-delay-time 3))) (accord--confirm))
+         (accord--confirm))))))
 
-(defun accord--edit-abort (&rest _)
-  "Advice before sending message used when editing a message.
-FN is `accord-delete-message'."
+(defun accord--edit-abort ()
+  "Abort the current edit."
+  (setq accord--edit-in-progress nil)
   (accord--erase-buffer)
-  (accord--reset-header-line)
-  (advice-remove #'accord-delete-message #'accord--edit-abort)
-  (advice-remove #'accord-send-message #'accord--edit-send))
+  (accord--reset-header-line))
 
-(defun accord--edit-send (&rest _)
-  "Advice before sending message used when editing a message.
-FN is `accord-send-message'."
-  (unless (derived-mode-p 'accord-mode) (accord))
-  (let ((message (string-trim (buffer-substring-no-properties (point-min) (point-max)))))
-    (when (string-empty-p message) (user-error "Can't send empty message"))
-    (gui-set-selection 'CLIPBOARD message)
-    (accord-send-commands
-     (accord--open-last)
-     (accord--clear-input)
-     (accord--paste)
-     (accord--confirm))
-    (undo-boundary)
-    (accord--erase-buffer)
-    (accord--reset-header-line)
-    (advice-remove #'accord-send-message #'accord--edit-send)))
-
+;;;###autoload
 (defun accord-edit-message ()
   "Edit last message."
   (interactive)
@@ -184,26 +173,37 @@ FN is `accord-send-message'."
         (substitute-command-keys
          (concat "\\<accord-mode-map>Accord buffer. "
                  "Send: `\\[accord-send-message]' "
-                 "Abort Edit: `\\[accord-delete-message]'")))
-  (advice-add #'accord-delete-message :override #'accord--edit-abort)
-  (advice-add #'accord-send-message :override #'accord--edit-send))
+                 "Abort Edit: `\\[accord-delete-message]'"))
+        accord--edit-in-progress t))
 
 ;;@TODO: send-in-chunks option to bypass charcter limit?
 ;;;###autoload
-(defun accord-send-message (&optional start end)
+(defun accord-send-message ()
   "Send string between START and END as message to Discord.
 If region is active, use `mark' and `point' as START and END."
-  (interactive "r")
-  (let ((message (string-trim (buffer-substring-no-properties
-                               (or start (point-min)) (or end (point-max))))))
+  (interactive)
+  (when (and accord--edit-in-progress
+             (not (string= (buffer-name) accord-buffer-name))
+             (yes-or-no-p (format "Abort edit in progress in %S buffer?"
+                                  accord-buffer-name)))
+    (accord--edit-abort)
+    (accord-send-message))
+  (let ((message (string-trim (apply #'buffer-substring-no-properties
+                                     (if (region-active-p)
+                                         (list (region-beginning) (region-end))
+                                       (list (point-min) (point-max)))))))
     (when (string-empty-p message) (user-error "Can't send empty message"))
     (gui-set-selection 'CLIPBOARD message)
     (accord-send-commands
+     (when accord--edit-in-progress (accord--open-last))
      (accord--clear-input)
      (accord--paste)
      (accord--confirm))
     (undo-boundary)
-    (accord--erase-buffer)))
+    (accord--erase-buffer)
+    (when accord--edit-in-progress
+      (accord--reset-header-line)
+      (setq accord--edit-in-progress nil))))
 
 ;;;###autoload
 (defun accord-channel-last ()
