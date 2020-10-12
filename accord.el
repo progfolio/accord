@@ -187,7 +187,7 @@ If NOCONFIRM is non-nil, do not prompt user for confirmation."
   (interactive)
   (unless (derived-mode-p 'accord-mode) (accord))
   (when accord--edit-in-progress
-    (user-error "Edit already in progress. Send or Abort."))
+    (user-error "Edit already in progress. Send or Abort"))
   (insert (accord--last-message))
   (goto-char (point-min))
   (setq header-line-format
