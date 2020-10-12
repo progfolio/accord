@@ -1,0 +1,9 @@
+* Accord: Emacs to Discord interface
+
+Accord allows you to control Discord from within Emacs via xdotools.
+
+** EXPERIMENTAL
+I make no guarantees on the stability of this package.
+
+** Demo
+[[http://www.youtube.com/watch?v=jJlo-v1GZPY][http://img.youtube.com/vi/jJlo-v1GZPY/0.jpg]]
