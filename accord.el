@@ -84,12 +84,13 @@
 
 (defun accord--reset-header-line ()
   "Reset the header-line."
-  (setq header-line-format
-        (substitute-command-keys
-         (concat "\\<accord-mode-map>Accord buffer. "
-                 "Send: `\\[accord-send-message]' "
-                 "Edit: `\\[accord-edit-message]' "
-                 "Delete: `\\[accord-delete-message]'"))))
+  (with-current-buffer (get-buffer-create accord-buffer-name)
+    (setq header-line-format
+          (substitute-command-keys
+           (concat "\\<accord-mode-map>Accord buffer. "
+                   "Send: `\\[accord-send-message]' "
+                   "Edit: `\\[accord-edit-message]' "
+                   "Delete: `\\[accord-delete-message]'")))))
 
 (defun accord--clear-input ()
   "Return command string to clear input area."
