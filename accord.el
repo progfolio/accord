@@ -352,8 +352,7 @@ If BOTTOM is non-nil, return to bottom of channel."
   (interactive)
   (if (string= (buffer-name) accord-buffer-name)
       (delete-window)
-    (select-window
-     (display-buffer-in-side-window (get-buffer-create accord-buffer-name) '((side . bottom))))
+    (switch-to-buffer-other-window (get-buffer-create accord-buffer-name))
     (unless (derived-mode-p 'accord-mode) (accord-mode))))
 
 ;;; Mode definition
