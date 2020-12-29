@@ -201,11 +201,10 @@ If NOCONFIRM is non-nil, do not prompt user for confirmation."
 (defun accord--chunk-message (message &optional limit)
   "Send MESSAGE in chunks under LIMIT.
 If LIMIT is nil, `accord-character-limit' is used."
-  (let* ((blockquote (string-match-p "^>>>" message))
-         (chars (cdr (split-string message "")))
+  (let* ((chars (cdr (split-string message "")))
          (charcount 0)
          (limit (or limit accord-character-limit))
-         chunk chunks word)
+         chunk chunks char)
     (while (setq char (pop chars))
       (if (< charcount limit)
           (progn
