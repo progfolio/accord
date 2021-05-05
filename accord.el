@@ -351,8 +351,10 @@ If BOTTOM is non-nil, return to bottom of channel."
   (interactive)
   (if (string= (buffer-name) accord-buffer-name)
       (delete-window)
-    (switch-to-buffer-other-window (get-buffer-create accord-buffer-name))
-    (unless (derived-mode-p 'accord-mode) (accord-mode))))
+    (let ((buffer (get-buffer-create accord-buffer-name)))
+      (with-current-buffer buffer
+        (unless (derived-mode-p 'accord-mode) (accord-mode)))
+      (switch-to-buffer-other-window buffer))))
 
 ;;; Mode definition
 (defvar accord-mode-map
