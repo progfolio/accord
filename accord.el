@@ -37,7 +37,7 @@
 ;;; Custom Options
 
 (defgroup accord nil
-  "xdotool Driven Discord Interface"
+  "Xdotool Driven Discord Interface."
   :group 'convenience
   :prefix "accord-")
 
@@ -167,7 +167,7 @@ If NOCONFIRM is non-nil, do not prompt user for confirmation."
     (let (last)
       (unless noconfirm
         (setq last (or (accord--last-message) (user-error "Unable to delete last message"))))
-      (when (or noconfirm (yes-or-no-p (format "Delete message?: %S" last)))
+      (when (or noconfirm (yes-or-no-p (format "Delete message: %S?" last)))
         (accord-send-commands
          (accord--open-last)
          (accord--clear-input)
@@ -228,7 +228,8 @@ If LIMIT is nil, `accord-character-limit' is used."
   "Send MESSAGE to Discord.
 If MESSAGE is no-nil region is sent if active, otherwise entire buffer is sent.
 If NOCHUNK is non-nil do not send messages over `accord-character-limit'
-as seperate messages. In this case, Discord will upload the message as a text file."
+as seperate messages.
+In this case, Discord will upload the message as a text file."
   (interactive "P")
   (let* ((previous (and accord--edit-in-progress
                         (not (string= (buffer-name) accord-buffer-name))))
