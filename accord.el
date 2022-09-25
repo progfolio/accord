@@ -226,7 +226,7 @@ If LIMIT is nil, `accord-character-limit' is used."
 ;;;###autoload
 (defun accord-send-message (&optional nochunk message)
   "Send MESSAGE to Discord.
-If MESSAGE is no-nil region is sent if active, otherwise entire buffer is sent.
+If MESSAGE is non-nil region is sent if active, otherwise entire buffer is sent.
 If NOCHUNK is non-nil do not send messages over `accord-character-limit'
 as seperate messages.
 In this case, Discord will upload the message as a text file."
