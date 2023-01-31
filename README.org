@@ -6,4 +6,4 @@ Accord allows you to control Discord from within Emacs via xdotool.
 I make no guarantees on the stability of this package.
 
 ** Demo
-[[http://www.youtube.com/watch?v=jJlo-v1GZPY][http://img.youtube.com/vi/jJlo-v1GZPY/0.jpg]]
+[[https://www.youtube.com/watch?v=0qPpajd9ZjA][https://img.youtube.com/vi/0qPpajd9ZjA/0.jpg]]
