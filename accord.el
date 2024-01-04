@@ -1,6 +1,6 @@
 ;;; accord.el --- Xdotool Driven Discord Interface  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2019-2023 Nicholas Vollmer
+;; Copyright (C) 2019-2024 Nicholas Vollmer
 
 ;; Author: Nicholas Vollmer <progfolio@protonmail.com>
 ;; URL: https://github.com/progfolio/accord
